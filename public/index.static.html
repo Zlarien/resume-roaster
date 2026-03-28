@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resume Roaster (Static Front)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #090909;
+        --card: #131313;
+        --text: #f2f2f2;
+        --muted: #b0b0b0;
+        --accent: #ff6333;
+        --accent-2: #ff9f1a;
+        --border: #292929;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        background: radial-gradient(circle at top, #1b1b1b, var(--bg) 45%);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: min(780px, 100%);
+        background: linear-gradient(145deg, #171717, var(--card));
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
+      }
+
+      .badge {
+        display: inline-block;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #1b1207;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        padding: 7px 10px;
+        border-radius: 999px;
+      }
+
+      h1 {
+        margin: 14px 0 10px;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 1.1;
+      }
+
+      .lead {
+        margin: 0;
+        color: var(--muted);
+        font-size: clamp(1rem, 2.2vw, 1.2rem);
+      }
+
+      .upload {
+        margin-top: 24px;
+        border: 1.5px dashed #4a4a4a;
+        border-radius: 14px;
+        padding: 26px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .upload p {
+        margin: 0 0 14px;
+        color: var(--muted);
+      }
+
+      .hint {
+        margin-top: 8px;
+        color: #c9c9c9;
+        font-size: 0.9rem;
+      }
+
+      input[type="file"] { display: none; }
+
+      .button {
+        appearance: none;
+        border: 0;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 0.96rem;
+        padding: 12px 16px;
+      }
+
+      .primary {
+        color: #1a1108;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      }
+
+      .status {
+        margin-top: 14px;
+        min-height: 1.2rem;
+        color: #e7e7e7;
+        font-size: 0.95rem;
+      }
+
+      .result {
+        margin-top: 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 14px;
+        color: #efefef;
+        text-align: left;
+        white-space: pre-wrap;
+        line-height: 1.45;
+      }
+
+      .result[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <span class="badge">Resume Roaster</span>
+      <h1>Drop your resume.</h1>
+      <p class="lead">Get <strong>brutal, honest AI feedback</strong> to make it stand out.</p>
+
+      <section class="upload" aria-label="Upload your resume">
+        <p>PDF or DOCX • private • feedback in minutes</p>
+        <label class="button primary" for="resumeFile">Upload resume</label>
+        <input id="resumeFile" type="file" accept=".pdf,.doc,.docx" />
+        <div class="hint">Set <code>window.RESUME_ROASTER_API_BASE</code> before this script if API is on another domain.</div>
+        <div id="status" class="status" aria-live="polite"></div>
+        <div id="result" class="result" hidden></div>
+      </section>
+    </main>
+
+    <script>
+      const input = document.getElementById("resumeFile");
+      const status = document.getElementById("status");
+      const result = document.getElementById("result");
+      const ROASTER_SYSTEM_PROMPT =
+        "Tu es un recruteur de la Silicon Valley extrêmement cynique et pressé. Analyse ce CV et fais une critique brutale et sarcastique. Ne prends pas de gants, mais donne 3 conseils concrets pour que ce candidat survive au premier tri.";
+      const API_BASE = window.RESUME_ROASTER_API_BASE || "";
+
+      async function roastResume(file) {
+        const formData = new FormData();
+        formData.append("resume", file);
+        formData.append("systemInstruction", ROASTER_SYSTEM_PROMPT);
+
+        const response = await fetch(`${API_BASE}/api/roast`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error (${response.status})`);
+        }
+
+        const data = await response.json();
+        if (typeof data.feedback !== "string" || data.feedback.trim() === "") {
+          throw new Error("Invalid API response: missing feedback");
+        }
+
+        const provider = data?.meta?.provider ? `\n\n(Provider: ${data.meta.provider})` : "";
+        return `${data.feedback}${provider}`;
+      }
+
+      function buildMockRoast(fileName) {
+        return [
+          "[Mode démo] Ton CV vient de survivre 6 secondes de lecture, c'est déjà une performance.",
+          `Fichier analysé: ${fileName}`,
+          "",
+          "Critique brutale:",
+          "- Ton accroche ressemble à une bio LinkedIn copiée-collée en 2017.",
+          "- Tu listes des tâches, pas des impacts: personne ne recrute des checklists.",
+          "- La structure donne envie de scroller… puis d'abandonner.",
+          "",
+          "3 conseils concrets pour survivre au premier tri:",
+          "1) Remplace chaque mission par un résultat chiffré (%, €, délai, volume).",
+          "2) Mets en haut un bloc 'Impact' en 3 lignes: rôle, secteur, plus grosse réussite.",
+          "3) Coupe 30% du texte et garde uniquement ce qui prouve ta valeur business.",
+        ].join("\n");
+      }
+
+      input.addEventListener("change", async () => {
+        const file = input.files && input.files[0];
+        if (!file) {
+          status.textContent = "No file selected.";
+          result.hidden = true;
+          result.textContent = "";
+          return;
+        }
+
+        status.textContent = `Analyzing: ${file.name}...`;
+        result.hidden = true;
+        result.textContent = "";
+
+        try {
+          const feedback = await roastResume(file);
+          status.textContent = "Roast complete.";
+          result.textContent = feedback;
+          result.hidden = false;
+        } catch (_error) {
+          status.textContent = "API indisponible: fallback en mode démo local.";
+          result.textContent = buildMockRoast(file.name);
+          result.hidden = false;
+        }
+      });
+    </script>
+  </body>
+</html>
