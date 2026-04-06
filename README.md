@@ -9,6 +9,8 @@ app_port: 7860
 
 # Resume Roaster
 
+[🇫🇷 Version française](./README.fr.md)
+
 Drop your resume — get brutal, honest AI feedback to make it stand out.
 
 Production-ready starter for GitHub + Hugging Face Spaces (Docker), with:
@@ -138,3 +140,10 @@ Set `CORS_ORIGIN` in backend `.env` accordingly.
   - try a text-based PDF/DOCX (scanned image PDFs need OCR)
 - `API error (4xx/5xx)` in frontend
   - check backend logs and provider credentials/model access
+
+## 10) Quality checklist
+
+- `npm run check` passes
+- `GET /health` responds with `{ "ok": true, ... }`
+- `.env` is not committed (`.gitignore` protects it)
+- `package-lock.json` is tracked for reproducible installs
