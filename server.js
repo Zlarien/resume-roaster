@@ -65,6 +65,8 @@ app.post("/api/roast", upload.single("resume"), async (req, res) => {
         model:
           LLM_PROVIDER === "openai"
             ? process.env.OPENAI_MODEL || "gpt-4o-mini"
+            : LLM_PROVIDER === "groq"
+            ? process.env.GROQ_MODEL || "llama-3.3-70b-versatile"
             : process.env.HF_MODEL || "meta-llama/Llama-3.1-8B-Instruct",
       },
     });
@@ -136,11 +138,15 @@ async function generateRoast(resumeText) {
     return generateWithOpenAI(resumeText, mergedPrompt);
   }
 
+  if (LLM_PROVIDER === "groq") {
+    return generateWithGroq(resumeText, mergedPrompt);
+  }
+
   if (LLM_PROVIDER === "huggingface") {
     return generateWithHuggingFace(resumeText, mergedPrompt);
   }
 
-  throw new Error("Invalid LLM_PROVIDER. Use 'openai' or 'huggingface'.");
+  throw new Error("Invalid LLM_PROVIDER. Use 'openai', 'groq' or 'huggingface'.");
 }
 
 async function generateWithOpenAI(resumeText, systemPrompt) {
@@ -243,6 +249,51 @@ async function generateWithHuggingFace(resumeText, systemPrompt) {
 
   if (!text.trim()) {
     throw new Error("Hugging Face response did not contain usable text.");
+  }
+
+  return text.trim();
+}
+
+async function generateWithGroq(resumeText, systemPrompt) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY is missing in environment.");
+  }
+
+  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.9,
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: buildUserPrompt(resumeText),
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const details = data && data.error ? JSON.stringify(data.error) : "Groq error";
+    throw new Error(details);
+  }
+
+  const text = data?.choices?.[0]?.message?.content;
+  if (typeof text !== "string" || !text.trim()) {
+    throw new Error("Groq response did not contain usable text.");
   }
 
   return text.trim();
